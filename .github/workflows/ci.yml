@@ -35,3 +35,20 @@ jobs:
           name: pytest-report
           path: reports/pytest.xml
           if-no-files-found: warn
+
+      - name: Upload application files
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: roadmaterials-app
+          path: |
+            app_final.py
+            test_app.py
+            requirements.txt
+            requirements-dev.txt
+            README.md
+            .env.example
+            .gitignore
+            .github/workflows/ci.yml
+          include-hidden-files: true
+          if-no-files-found: error
