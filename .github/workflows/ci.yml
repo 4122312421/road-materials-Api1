@@ -50,5 +50,9 @@ jobs:
             .env.example
             .gitignore
             .github/workflows/ci.yml
+            static/index.html
+            static/styles.css
+            static/app.js
+            docs/interface.jpg
           include-hidden-files: true
           if-no-files-found: error

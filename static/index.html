@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111e31">
+  <meta name="description" content="RoadMaterials — понятный расчёт стоимости дорожных материалов и доставки.">
+  <title>RoadMaterials — материалы и доставка</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Перейти к содержимому</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Главное меню">
+      <a class="brand" href="/" aria-label="RoadMaterials — на главную">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 36 36" fill="none"><path d="M18 6 30 12.5 18 19 6 12.5 18 6Z" fill="currentColor"/><path d="m6 18 12 6.5L30 18M6 23.5 18 30l12-6.5" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-copy"><strong>RoadMaterials</strong><small>Материалы и доставка</small></span>
+      </a>
+      <div class="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+      <nav class="main-nav">
+        <button class="nav-item" type="button" data-view="calculator" aria-current="page">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8.5 7h7M8.5 11h1m4 0h2M8.5 15h1m4 0h2M8.5 18h1m4 0h2" stroke-linecap="round"/></svg>
+          <span>Расчёт поставки</span>
+        </button>
+        <button class="nav-item" type="button" data-view="catalog">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          <span>Каталог материалов</span>
+        </button>
+        <button class="nav-item" type="button" data-view="history">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg>
+          <span>Мои расчёты</span><span class="nav-count" id="history-count">0</span>
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-note">
+          <span class="sidebar-note-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m4 17 4-10h8l4 10M5.5 13h13M12 7v3m0 3v3m0 3v2" stroke-linecap="round"/></svg></span>
+          <strong>От материала до объекта</strong>
+          <p>Стоимость поставки в одном расчёте.</p>
+        </div>
+        <a class="documentation-link" href="/docs" target="_blank" rel="noopener">Документация API <span aria-hidden="true">↗</span></a>
+        <div class="sidebar-footer">Учебный проект · демо-цены</div>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Рабочее пространство</span><span class="breadcrumb-divider" aria-hidden="true">/</span><strong id="page-crumb">Расчёт поставки</strong></div>
+        <div class="topbar-actions">
+          <span class="service-status" id="service-status" data-state="loading" role="status"><span class="status-dot" aria-hidden="true"></span>Проверяем сервис</span>
+          <button class="help-button" id="help-button" type="button" aria-label="Как пользоваться" aria-haspopup="dialog" aria-controls="help-dialog"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.7a2.6 2.6 0 0 1 5 1c0 1.7-2.5 2-2.5 3.8M12 16.5h.01" stroke-linecap="round"/></svg><span>Как пользоваться</span></button>
+        </div>
+      </header>
+
+      <main class="main-content" id="main-content" tabindex="-1">
+        <div class="page-heading">
+          <div><div class="eyebrow">ROADMATERIALS</div><h1 id="page-title">Расчёт поставки</h1><p id="page-description">Выберите материал и укажите параметры — мы рассчитаем стоимость с доставкой.</p></div>
+          <span class="demo-badge"><span aria-hidden="true"></span>Демонстрационные цены</span>
+        </div>
+
+        <div class="load-error" id="load-error" role="alert" hidden><div><strong>Не удалось загрузить данные</strong><p id="load-error-text">Проверьте соединение и попробуйте ещё раз.</p></div><button class="button button-secondary button-small" id="load-retry" type="button">Повторить</button></div>
+        <noscript><div class="load-error">Для работы калькулятора включите JavaScript в настройках браузера.</div></noscript>
+
+        <section id="view-calculator" data-panel="calculator" aria-label="Калькулятор поставки">
+          <div class="workspace-grid">
+            <form id="estimate-form" class="estimate-form" novalidate>
+              <section class="panel step-panel" aria-labelledby="material-heading">
+                <div class="step-heading"><span class="step-number">01</span><div><h2 id="material-heading">Выберите материал</h2><p>Цена указана за одну тонну.</p></div><span class="step-caption">МАТЕРИАЛ</span></div>
+                <div class="material-picker" id="material-picker" role="radiogroup" aria-labelledby="material-heading"><div class="loading-state"><span class="loading-dot" aria-hidden="true"></span>Загружаем материалы…</div></div>
+              </section>
+
+              <section class="panel step-panel parameters-panel" aria-labelledby="parameters-heading">
+                <div class="step-heading"><span class="step-number">02</span><div><h2 id="parameters-heading">Параметры поставки</h2><p>Укажите объём материала и путь до объекта.</p></div><span class="step-caption">ДОСТАВКА</span></div>
+                <div class="fields-grid">
+                  <div class="field-group">
+                    <label for="quantity_tons">Количество материала <span class="required-star" aria-hidden="true">*</span></label>
+                    <div class="input-with-unit"><input id="quantity_tons" name="quantity_tons" type="text" inputmode="decimal" autocomplete="off" placeholder="Например, 30" aria-describedby="quantity-hint quantity-error" required><span class="input-unit" aria-hidden="true">т</span></div>
+                    <p class="field-hint" id="quantity-hint">В тоннах, можно с дробной частью.</p>
+                    <p class="field-error" id="quantity-error" hidden></p>
+                    <div class="quick-values" aria-label="Быстрый выбор количества"><span>Быстрый выбор</span><button type="button" data-quantity="30">30 т</button><button type="button" data-quantity="60">60 т</button><button type="button" data-quantity="100">100 т</button></div>
+                  </div>
+                  <div class="field-group">
+                    <label for="distance_km">Расстояние доставки <span class="required-star" aria-hidden="true">*</span></label>
+                    <div class="input-with-unit"><input id="distance_km" name="distance_km" type="text" inputmode="decimal" autocomplete="off" placeholder="Например, 50" aria-describedby="distance-hint distance-error" required><span class="input-unit" aria-hidden="true">км</span></div>
+                    <p class="field-hint" id="distance-hint">Расстояние до объекта в одну сторону.</p>
+                    <p class="field-error" id="distance-error" hidden></p>
+                    <div class="quick-values" aria-label="Быстрый выбор расстояния"><span>Быстрый выбор</span><button type="button" data-distance="25">25 км</button><button type="button" data-distance="50">50 км</button><button type="button" data-distance="100">100 км</button></div>
+                  </div>
+                </div>
+                <div class="field-group project-field"><label for="project-name">Название объекта <span class="optional-label">необязательно</span></label><input id="project-name" name="project_name" type="text" maxlength="80" autocomplete="off" placeholder="Например, благоустройство территории"><p class="field-hint">Для сохранённого расчёта — чтобы легко найти его позже.</p></div>
+                <div class="tariff-note"><span class="tariff-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5h11v12H3V5Zm11 5h4l3 4v3h-7V10Z" stroke-linejoin="round"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="17.5" cy="18" r="2" fill="currentColor" stroke="none"/><path d="M17 10v4h4"/></svg></span><div><span>Тариф доставки</span><strong id="tariff-value">—</strong></div><p>За перевозку одной тонны<br>на один километр.</p></div>
+                <div class="calculation-feedback" id="calculation-feedback" role="alert" hidden></div>
+                <div class="form-actions"><button class="button button-primary calculate-button" id="calculate-button" type="submit" disabled><span id="calculate-label">Рассчитать стоимость</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="button button-quiet" id="clear-button" type="button">Очистить поля</button></div>
+              </section>
+            </form>
+
+            <aside class="panel result-panel" id="result-panel" aria-label="Результат расчёта">
+              <div class="result-heading"><span class="result-heading-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 8h6M9 12h4" stroke-linecap="round"/></svg></span><h2>Ваш расчёт</h2><span class="result-heading-caption">RUB</span></div>
+              <div id="result-empty" class="result-empty"><div class="empty-estimate-art" aria-hidden="true"><svg viewBox="0 0 160 130" fill="none"><ellipse cx="80" cy="115" rx="49" ry="8" fill="#e9edf2"/><rect x="46" y="15" width="69" height="94" rx="8" fill="white" stroke="#d5dde7" stroke-width="1.5"/><path d="M61 37h38M61 48h23M61 67h18M93 67h7M61 78h18M93 78h7" stroke="#d4dce6" stroke-width="4" stroke-linecap="round"/><path d="M61 94h21" stroke="#f64a00" stroke-width="4" stroke-linecap="round"/><rect x="24" y="60" width="42" height="40" rx="9" fill="#fff0e8" stroke="#ffd3bc"/><path d="M36 80h18m-9-9v18" stroke="#f64a00" stroke-width="2.3" stroke-linecap="round"/><circle cx="119" cy="29" r="11" fill="#edf3f5"/><path d="m114 29 3 3 6-6" stroke="#8aa0ae" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h3>Результат появится здесь</h3><p>Выберите материал, заполните параметры и нажмите «Рассчитать стоимость».</p><button class="button button-secondary button-small" id="example-button" type="button" disabled>Показать пример <span aria-hidden="true">↗</span></button></div>
+              <div id="result-content" class="result-content" aria-live="polite" hidden>
+                <p class="result-project" id="result-project" hidden></p>
+                <div class="result-total"><span>Итого с доставкой</span><strong id="total-cost">—</strong><span class="total-caption">Материал + перевозка до объекта</span></div>
+                <div class="result-selection"><span class="result-label">Материал</span><h3 id="result-material">—</h3><dl class="result-dimensions"><div><dt>Количество</dt><dd id="result-quantity">—</dd></div><div><dt>Расстояние</dt><dd id="result-distance">—</dd></div></dl></div>
+                <dl class="cost-breakdown"><div><dt>Стоимость материала</dt><dd id="material-cost">—</dd></div><div><dt>Доставка</dt><dd id="delivery-cost">—</dd></div></dl>
+                <div class="rate-breakdown"><span>Тариф перевозки</span><strong id="result-rate">—</strong></div>
+                <p class="result-formula" id="result-formula"></p>
+                <div class="result-stale" id="result-stale" role="status" hidden>Параметры изменены. Нажмите «Рассчитать стоимость», чтобы обновить результат.</div>
+                <div class="result-actions"><button class="button button-primary button-full" id="save-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4V4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>Сохранить расчёт</button><div class="secondary-result-actions"><button class="button button-secondary button-small" id="copy-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg>Скопировать</button><button class="button button-secondary button-small" id="print-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 8V3h12v5M6 17H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6zM17 11h1" stroke-linecap="round"/></svg>Печать / PDF</button></div></div>
+                <p class="result-date">Рассчитано <span id="result-date"></span></p>
+              </div>
+              <div class="result-disclaimer"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01" stroke-linecap="round"/></svg><p>Демонстрационные цены. Расчёт не является коммерческим предложением.</p></div>
+            </aside>
+          </div>
+          <div class="calculation-note"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg><p><strong>Прозрачный расчёт.</strong> Материал по цене за тонну + доставка по расстоянию. Обратный рейс, простой и дополнительные услуги не учитываются.</p></div>
+        </section>
+
+        <section id="view-catalog" data-panel="catalog" aria-label="Каталог материалов" hidden>
+          <div class="panel catalog-toolbar"><label class="search-field" for="catalog-search"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg><span class="sr-only">Найти материал</span><input id="catalog-search" type="search" placeholder="Найти материал" autocomplete="off"></label><div class="category-filters" aria-label="Категории материалов"><button class="is-active" type="button" data-category="all" aria-pressed="true">Все материалы</button><button type="button" data-category="asphalt" aria-pressed="false">Асфальт</button><button type="button" data-category="aggregate" aria-pressed="false">Инертные</button></div></div>
+          <div class="catalog-summary"><span>Материалов: <strong id="catalog-count">—</strong></span><span>Стоимость за одну тонну</span></div>
+          <div class="catalog-grid" id="catalog-grid"></div>
+          <div class="panel section-empty" id="catalog-empty" hidden><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg></span><h2>Материалы не найдены</h2><p>Попробуйте другое название или выберите категорию «Все материалы».</p></div>
+          <div class="catalog-footnote"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01" stroke-linecap="round"/></svg>Демонстрационный каталог. Выберите материал, чтобы рассчитать поставку.</div>
+        </section>
+
+        <section id="view-history" data-panel="history" aria-label="Сохранённые расчёты" hidden>
+          <div class="history-storage-note"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4" stroke-linecap="round"/></svg><p>До 20 последних расчётов хранятся только в этом браузере. На другом устройстве они не появятся.</p></div>
+          <div class="history-list" id="history-list"></div>
+          <div class="panel section-empty history-empty" id="history-empty"><span class="empty-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 8h6M9 12h4" stroke-linecap="round"/></svg></span><h2>Здесь будут ваши расчёты</h2><p>Рассчитайте поставку и нажмите «Сохранить расчёт». Вы сможете вернуться к результату и распечатать его.</p><button class="button button-primary" type="button" data-view="calculator">Рассчитать поставку <span aria-hidden="true">→</span></button></div>
+        </section>
+        <footer class="page-footer"><span>RoadMaterials · Материалы и доставка</span><span>Все суммы в российских рублях</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <dialog class="app-dialog help-dialog" id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">БЫСТРОЕ ЗНАКОМСТВО</span><h2 id="help-title">Как рассчитать поставку</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Закрыть справку"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg></button></div><ol class="help-steps"><li><strong>Выберите материал</strong><p>Нажмите на карточку в калькуляторе или найдите нужный материал в каталоге.</p></li><li><strong>Введите количество и расстояние</strong><p>Количество — в тоннах, путь до объекта — в километрах. Дробные значения можно вводить через запятую или точку.</p></li><li><strong>Нажмите «Рассчитать стоимость»</strong><p>Справа появятся стоимость материала, доставки и общий итог. Результат можно сохранить, скопировать или распечатать.</p></li></ol><div class="help-formula"><strong>Как складывается сумма</strong><p>Цена материала × количество<br><span>+</span> Тариф доставки × количество × расстояние</p></div><p class="help-note">Цены в каталоге демонстрационные. Обратный рейс, простой и дополнительные услуги не включены. Сохранённые расчёты доступны только в текущем браузере.</p></dialog>
+  <dialog class="app-dialog delete-dialog" id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-heading"><h2 id="delete-title">Удалить расчёт?</h2></div><p class="dialog-copy">Этот расчёт исчезнет из сохранённых в этом браузере.</p><div class="dialog-actions"><button class="button button-secondary" id="cancel-delete" type="button">Оставить</button><button class="button button-danger" id="confirm-delete" type="button">Удалить расчёт</button></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <section id="print-sheet" hidden></section>
+</body>
+</html>

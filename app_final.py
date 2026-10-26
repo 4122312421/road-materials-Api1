@@ -2,12 +2,16 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from decimal import Decimal, ROUND_HALF_UP
+from pathlib import Path as FilePath
 
 from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
+STATIC_DIR = FilePath(__file__).resolve().parent / "static"
 
 
 class TariffSettings(BaseModel):
@@ -45,6 +49,7 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
 )
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Учебные данные: цена за одну тонну, в рублях.
 MATERIALS = {
@@ -105,6 +110,11 @@ def round_money(amount: Decimal):
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+@app.get("/", include_in_schema=False)
+def home():
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
+
+
 @app.get("/health", tags=["Служебные"])
 def health():
     return {"status": "ok"}
@@ -113,6 +123,11 @@ def health():
 @app.get("/version", tags=["Служебные"])
 def version():
     return {"version": APP_VERSION}
+
+
+@app.get("/pricing", tags=["Доставка"], summary="Действующий тариф доставки")
+def pricing():
+    return {"delivery_rate": str(DELIVERY_RATE), "currency": "RUB"}
 
 
 @app.get("/materials", tags=["Материалы"], summary="Список материалов")

@@ -128,3 +128,44 @@ def test_delivery_tariff_from_environment(client, valid_order):
     assert result["material_cost"] == "315000.00"
     assert result["delivery_cost"] == "12000.00"
     assert result["total_cost"] == "327000.00"
+
+
+def test_user_interface(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert 'id="estimate-form"' in response.text
+    assert "/static/styles.css" in response.text
+    assert "/static/app.js" in response.text
+
+
+@pytest.mark.parametrize(
+    "path, content_types, marker",
+    [
+        ("/static/styles.css", ("text/css",), ":root"),
+        (
+            "/static/app.js",
+            ("text/javascript", "application/javascript"),
+            "/delivery/calculate",
+        ),
+    ],
+)
+def test_interface_assets(client, path, content_types, marker):
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.headers["content-type"].split(";")[0] in content_types
+    assert marker in response.text
+
+
+@pytest.mark.parametrize("client", ["7.5", "8"], indirect=True)
+def test_pricing_matches_calculation(client, valid_order):
+    pricing_response = client.get("/pricing")
+    calculation_response = client.post("/delivery/calculate", json=valid_order)
+    assert pricing_response.status_code == 200
+    assert calculation_response.status_code == 200
+    pricing_data = pricing_response.json()
+    result = calculation_response.json()
+    assert pricing_data == {
+        "delivery_rate": result["delivery_rate"],
+        "currency": result["currency"],
+    }
