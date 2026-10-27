@@ -3,11 +3,12 @@ import os
 from contextlib import asynccontextmanager
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path as FilePath
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Path, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 APP_VERSION = os.getenv("APP_VERSION", "0.1.0")
@@ -77,6 +78,46 @@ MATERIALS = {
 }
 
 
+# Ставки в рублях за тонно-километр. Грузоподъёмность выбирается
+# отдельно от общего количества материала в заказе.
+TARIFF_RATES = {
+    63: {
+        "over_100": "4.60",
+        "from_20_to_100": "5.60",
+        "under_20": "9.00",
+        "special_1": "4.60",
+        "special_2": "4.37",
+    },
+    53: {
+        "over_100": "5.10",
+        "from_20_to_100": "6.50",
+        "under_20": "8.20",
+        "special_1": "4.60",
+        "special_2": "4.37",
+    },
+    42: {
+        "over_100": "6.40",
+        "from_20_to_100": "7.50",
+        "under_20": "14.50",
+        "special_1": "5.60",
+        "special_2": "5.40",
+    },
+    32: {
+        "over_100": "7.30",
+        "from_20_to_100": "8.70",
+        "under_20": "15.60",
+        "special_1": "7.12",
+        "special_2": "6.90",
+    },
+}
+TARIFF_NAMES = {
+    "default": "Базовый тариф",
+    "standard": "Стандартный тариф",
+    "special_1": "Спецтариф 1",
+    "special_2": "Спецтариф 2",
+}
+
+
 class DeliveryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -97,6 +138,31 @@ class DeliveryRequest(BaseModel):
         examples=[50],
         description="Расстояние доставки, км; до 3 знаков после точки",
     )
+    tariff_mode: Literal["default", "standard", "special_1", "special_2"] = Field(
+        default="default",
+        description="Вид тарифа; default сохраняет тариф DELIVERY_RATE",
+    )
+    vehicle_capacity_tons: Literal[32, 42, 53, 63] | None = Field(
+        default=None,
+        description="Грузоподъёмность машины, т; обязательна для тарифа из таблицы",
+    )
+    origin: str = Field(
+        default="", max_length=160, description="Откуда везут материал"
+    )
+    destination: str = Field(
+        default="", max_length=160, description="Куда везут материал"
+    )
+
+    @field_validator("origin", "destination", mode="before")
+    @classmethod
+    def trim_route_point(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def require_capacity_for_table_tariff(self):
+        if self.tariff_mode != "default" and self.vehicle_capacity_tons is None:
+            raise ValueError("Выберите грузоподъёмность машины для тарифа из таблицы")
+        return self
 
 
 def find_material(material_id: int):
@@ -108,6 +174,26 @@ def find_material(material_id: int):
 
 def round_money(amount: Decimal):
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def resolve_tariff(order: DeliveryRequest):
+    if order.tariff_mode == "default":
+        return DELIVERY_RATE, None, None
+
+    band = None
+    rate_key = order.tariff_mode
+    if order.tariff_mode == "standard":
+        # Обе границы 20 и 100 км относятся к среднему диапазону.
+        if order.distance_km < Decimal("20"):
+            band = "under_20"
+        elif order.distance_km <= Decimal("100"):
+            band = "from_20_to_100"
+        else:
+            band = "over_100"
+        rate_key = band
+
+    rate = Decimal(TARIFF_RATES[order.vehicle_capacity_tons][rate_key])
+    return rate, band, order.vehicle_capacity_tons
 
 
 @app.get("/", include_in_schema=False)
@@ -128,6 +214,19 @@ def version():
 @app.get("/pricing", tags=["Доставка"], summary="Действующий тариф доставки")
 def pricing():
     return {"delivery_rate": str(DELIVERY_RATE), "currency": "RUB"}
+
+
+@app.get("/tariffs", tags=["Доставка"], summary="Таблица тарифов перевозки")
+def tariffs():
+    return {
+        "currency": "RUB",
+        "unit": "RUB_PER_TON_KM",
+        "default_rate": str(DELIVERY_RATE),
+        "rows": [
+            {"vehicle_capacity_tons": capacity, "rates": rates}
+            for capacity, rates in TARIFF_RATES.items()
+        ],
+    }
 
 
 @app.get("/materials", tags=["Материалы"], summary="Список материалов")
@@ -159,19 +258,24 @@ def get_material(material_id: int = Path(gt=0)):
 def calculate_delivery(order: DeliveryRequest):
     material = find_material(order.material_id)
     price = Decimal(material["price_per_ton"])
+    rate, distance_band, capacity = resolve_tariff(order)
 
     material_cost = round_money(price * order.quantity_tons)
     delivery_cost = round_money(
-        DELIVERY_RATE * order.quantity_tons * order.distance_km
+        rate * order.quantity_tons * order.distance_km
     )
     total_cost = material_cost + delivery_cost
 
     logger.info(
         "Delivery calculated: material_id=%s, quantity_tons=%s, "
-        "distance_km=%s, total_cost=%s RUB",
+        "distance_km=%s, tariff_mode=%s, vehicle_capacity_tons=%s, "
+        "delivery_rate=%s, total_cost=%s RUB",
         order.material_id,
         order.quantity_tons,
         order.distance_km,
+        order.tariff_mode,
+        capacity,
+        rate,
         total_cost,
     )
 
@@ -181,7 +285,13 @@ def calculate_delivery(order: DeliveryRequest):
         "quantity_tons": str(order.quantity_tons),
         "distance_km": str(order.distance_km),
         "price_per_ton": material["price_per_ton"],
-        "delivery_rate": str(DELIVERY_RATE),
+        "delivery_rate": str(rate),
+        "tariff_mode": order.tariff_mode,
+        "tariff_name": TARIFF_NAMES[order.tariff_mode],
+        "vehicle_capacity_tons": capacity,
+        "distance_band": distance_band,
+        "origin": order.origin,
+        "destination": order.destination,
         "material_cost": str(material_cost),
         "delivery_cost": str(delivery_cost),
         "total_cost": str(total_cost),

@@ -27,8 +27,8 @@ button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 a { color: inherit; text-decoration: none; }
 svg { display: block; }
-button, input { min-width: 0; }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #f64a0066; outline-offset: 3px; }
+button, input, select { min-width: 0; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #f64a0066; outline-offset: 3px; }
 h1, h2, h3, p, dl { margin-top: 0; }
 [hidden] { display: none !important; }
 .icon { width: 20px; height: 20px; flex: 0 0 20px; }
@@ -280,6 +280,74 @@ h1 { margin: 6px 0 9px; font-size: clamp(27px, 2.5vw, 34px); line-height: 1.2; l
 .toast { position: fixed; z-index: 200; bottom: 25px; left: calc(50% + 119px); transform: translateX(-50%); max-width: min(510px, calc(100vw - 40px)); background: #172c43; border: 1px solid #30465e; color: white; border-radius: 11px; padding: 13px 20px; box-shadow: 0 8px 35px #10213730; font-size: 12px; line-height: 1.6; text-align: center; overflow-wrap: anywhere; }
 .toast[data-type="error"], .toast.error { background: #8c3038; border-color: #a2444c; }
 
+/* Routes, tariff selection and saved-estimate filters. */
+.field-group select { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 46px; border: 1px solid #dce3eb; border-radius: 8px; color: var(--ink); background: #fff; padding: 10px 32px 10px 12px; text-overflow: ellipsis; }
+.field-group select:focus { border-color: #f68b5b; box-shadow: 0 0 0 3px #f64a000d; }
+.route-fields { margin-top: 25px; border-top: 1px solid #edf0f4; padding-top: 21px; }
+.route-fields-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; color: #46576d; }
+.route-fields-heading strong { font-size: 14px; font-weight: 650; }
+.route-heading-mark { color: #8c9bab; }
+.route-heading-mark .icon { width: 18px; height: 18px; }
+.route-fields .field-hint { margin-top: 10px; }
+.tariff-note.tariff-selector { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 12px; border-color: #e1e7ee; background: #f8fafc; padding: 15px; }
+.tariff-selector .tariff-icon { align-self: start; margin-top: 4px; color: #667d94; }
+.tariff-selector .tariff-selector-copy { min-width: 0; gap: 4px; }
+.tariff-selector .tariff-selector-copy > strong { color: var(--ink); font-size: 15px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.tariff-selector-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.tariff-selector .button { align-self: center; font-size: 13px; white-space: nowrap; }
+.result-route { margin: 0 0 20px; display: grid; gap: 11px; padding: 14px 13px; background: #f7f9fb; border: 1px solid #e8edf2; border-radius: 8px; }
+.result-route > div { min-width: 0; padding-left: 15px; position: relative; }
+.result-route > div::before { content: ""; position: absolute; left: 0; top: 6px; width: 6px; height: 6px; border: 1.5px solid #8ea0b2; border-radius: 50%; }
+.result-route > div:last-child::before { border-color: var(--orange); background: var(--orange); }
+.result-route dt { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.result-route dd { margin: 0; font-size: 13px; font-weight: 550; line-height: 1.6; overflow-wrap: anywhere; }
+.result-tariff-name { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.history-toolbar { margin-bottom: 20px; padding: 21px 24px 17px; }
+.history-search-group { min-width: 0; }
+.history-search-group > label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 650; color: #3b4a5e; }
+.history-search-group .search-field { width: 100%; max-width: none; }
+.history-search-group input { font-size: 14px; height: 44px; }
+.history-search-group input::placeholder { font-size: 13px; }
+.history-filter-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 16px; margin-top: 17px; }
+.history-filter-row select { height: 44px; min-height: 44px; font-size: 13px; }
+.history-filter-row > .button { min-height: 44px; font-size: 13px; }
+.history-filter-count { margin: 14px 0 0; color: var(--muted); font-size: 12px; }
+.history-route { display: grid; gap: 6px; margin: 10px 0 12px; }
+.history-route > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.history-route dt, .history-route .route-label { min-width: 45px; font-size: 12px; color: var(--muted); }
+.history-route dd, .history-route .route-value { margin: 0; font-size: 13px; color: #41536b; overflow-wrap: anywhere; min-width: 0; }
+.history-route p { margin: 0; overflow-wrap: anywhere; font-size: 13px; color: #41536b; }
+.history-meta span { max-width: 100%; overflow-wrap: anywhere; }
+.tariff-dialog { width: min(900px, calc(100% - 32px)); max-width: none; padding: 28px; }
+.tariff-intro { color: var(--muted); margin: 14px 0 22px; max-width: 680px; font-size: 13px; line-height: 1.75; }
+.tariff-controls { margin-bottom: 21px; }
+.tariff-table-scroll { width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid #dfe6ee; border-radius: 10px; overscroll-behavior-x: contain; }
+.tariff-table-scroll:focus-visible { outline: 3px solid #f64a0066; outline-offset: 3px; }
+.tariff-table { width: 100%; min-width: 665px; border-collapse: separate; border-spacing: 0; font-size: 14px; font-variant-numeric: tabular-nums; text-align: center; }
+.tariff-table th, .tariff-table td { border-right: 1px solid #e5eaf0; border-bottom: 1px solid #e5eaf0; }
+.tariff-table tr > :last-child { border-right: 0; }
+.tariff-table tbody tr:last-child > * { border-bottom: 0; }
+.tariff-table thead th { background: #f3f6f9; color: #54667c; font-size: 12px; font-weight: 650; line-height: 1.5; padding: 12px 10px; }
+.tariff-table thead .special-tariff-heading { background: #edf2f7; }
+.tariff-table tbody th { width: 155px; padding: 10px; background: #fbfcfd; color: #41536b; font-weight: 650; }
+.tariff-table td { padding: 5px; min-width: 98px; transition: background .12s; }
+.tariff-table td.is-applicable { background: #f6f9fb; }
+.tariff-table td.is-selected { background: #fff0e7; }
+.tariff-row-label { padding: 7px 12px; color: inherit; font-weight: 650; border: 0; background: transparent; border-radius: 5px; }
+button.tariff-row-label:hover { color: var(--orange-dark); background: #fff3ec; }
+.tariff-cell-button { display: block; width: 100%; min-height: 43px; padding: 9px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #41536b; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tariff-cell-button:hover:not(:disabled) { background: #fff4ed; color: var(--orange-dark); border-color: #ffd2bc; }
+.tariff-cell-button:disabled { color: #8b97a6; font-weight: 500; }
+.tariff-table td.is-selected .tariff-cell-button { color: var(--orange-dark); background: #fff5ef; border-color: #f64a00; font-weight: 750; box-shadow: inset 0 0 0 1px #f64a00; }
+.tariff-table-hint { margin: 10px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.tariff-preview { display: flex; align-items: center; gap: 24px; padding: 17px 20px; border: 1px solid #e0e7ef; border-radius: 10px; background: #f7f9fb; }
+.tariff-preview > div { min-width: 0; flex: 0 0 auto; }
+.tariff-preview > div > span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.tariff-preview strong { display: block; color: var(--ink); font-size: 21px; font-weight: 700; letter-spacing: -.35px; overflow-wrap: anywhere; }
+.tariff-preview > p { margin: 0 0 0 auto; max-width: 390px; color: #54667c; font-size: 13px; line-height: 1.7; text-align: right; overflow-wrap: anywhere; }
+.tariff-rules { margin: 14px 0 24px; color: var(--muted); font-size: 12px; line-height: 1.75; }
+.tariff-dialog-actions { border-top: 1px solid #e7ecf2; padding-top: 20px; }
+
 @media (min-width: 1600px) {
   .workspace-grid { grid-template-columns: minmax(0, 1fr) 370px; gap: 26px; }
   .material-art { height: 125px; }
@@ -511,6 +579,38 @@ h1 { margin: 6px 0 9px; font-size: clamp(27px, 2.5vw, 34px); line-height: 1.2; l
   .nav-item .icon { display: block; width: 17px; height: 17px; flex-basis: 17px; }
   .nav-item > span:not(.nav-count) { max-width: 100%; min-height: 29px; text-align: center; }
   .nav-count { position: absolute; top: 4px; right: 4px; min-width: 18px; padding: 1px 4px; font-size: 11px; }
+  .field-group select { font-size: 16px; min-height: 46px; }
+  .history-toolbar { padding: 20px; }
+  .history-search-group input { font-size: 16px; }
+  .history-filter-row { gap: 12px; }
+  .history-filter-row > .button { grid-column: 1 / -1; justify-self: start; min-height: 35px; padding-left: 0; }
+  .history-filter-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tariff-dialog { padding: 24px; }
+  .tariff-preview { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .tariff-preview > p { margin-left: 0; text-align: left; max-width: none; }
+}
+@media (max-width: 560px) {
+  .tariff-note.tariff-selector { grid-template-columns: 24px minmax(0, 1fr); padding: 14px; }
+  .tariff-selector .button { grid-column: 1 / -1; width: 100%; margin-top: 2px; min-height: 42px; font-size: 14px; }
+  .tariff-selector .tariff-selector-copy > strong { font-size: 15px; }
+  .history-toolbar { padding: 18px 15px; }
+  .history-filter-row { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .history-filter-row > .button { min-height: 34px; }
+  .history-filter-count { margin-top: 7px; }
+  .history-search-group > label { font-size: 13px; }
+  .history-search-group input::placeholder { font-size: 12px; }
+  .tariff-dialog { width: calc(100% - 20px); padding: 21px 16px; max-height: calc(100dvh - 20px); }
+  .tariff-dialog .dialog-heading { gap: 12px; }
+  .tariff-dialog .dialog-heading h2 { font-size: 22px; }
+  .tariff-controls { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .tariff-preview { padding: 15px; }
+  .tariff-preview > div { flex: 0 1 auto; max-width: 100%; }
+  .tariff-preview strong { font-size: 20px; }
+  .tariff-dialog-actions { flex-wrap: wrap; }
+  .tariff-dialog-actions .button { flex: 1 1 auto; min-height: 43px; font-size: 13px; }
+  .route-fields-heading { gap: 7px; }
+  .route-fields-heading .optional-label { flex-basis: 100%; margin-left: 25px; }
+  .result-route dd { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -537,5 +637,6 @@ h1 { margin: 6px 0 9px; font-size: clamp(27px, 2.5vw, 34px); line-height: 1.2; l
   .print-total { font-size: 20pt; font-weight: 750; border-top: 2px solid #182a42; padding-top: 16px; margin-top: 25px; display: flex; justify-content: space-between; gap: 24px; }
   .print-total span:first-child { font-size: 12pt; font-weight: 500; }
   .print-note { font-size: 9pt; color: #748397; margin-top: 25px; line-height: 1.7; }
+  #print-sheet p, #print-sheet dd { overflow-wrap: anywhere; }
   #print-sheet article, .print-table tr, .print-total { break-inside: avoid; }
 }

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#111e31">
   <meta name="description" content="RoadMaterials — понятный расчёт стоимости дорожных материалов и доставки.">
   <title>RoadMaterials — материалы и доставка</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="/static/styles.css?v=0.2.0">
+  <script src="/static/app.js?v=0.2.0" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Перейти к содержимому</a>
@@ -89,8 +89,20 @@
                     <div class="quick-values" aria-label="Быстрый выбор расстояния"><span>Быстрый выбор</span><button type="button" data-distance="25">25 км</button><button type="button" data-distance="50">50 км</button><button type="button" data-distance="100">100 км</button></div>
                   </div>
                 </div>
+                <div class="route-fields">
+                  <div class="route-fields-heading"><span class="route-heading-mark" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v6a4 4 0 0 0 4 4h4a4 4 0 0 0 0-8h-3M18 15v2" stroke-linecap="round"/></svg></span><strong>Маршрут перевозки</strong><span class="optional-label">необязательно</span></div>
+                  <div class="fields-grid">
+                    <div class="field-group"><label for="origin">Откуда везём</label><input id="origin" name="origin" type="text" maxlength="160" autocomplete="off" list="origin-suggestions" placeholder="Карьер, база или адрес погрузки" aria-describedby="route-hint"><datalist id="origin-suggestions"></datalist></div>
+                    <div class="field-group"><label for="destination">Куда везём</label><input id="destination" name="destination" type="text" maxlength="160" autocomplete="off" list="destination-suggestions" placeholder="Объект или адрес разгрузки" aria-describedby="route-hint"><datalist id="destination-suggestions"></datalist></div>
+                  </div>
+                  <p class="field-hint" id="route-hint">Пункты сохранятся в расчёте и помогут найти его позже. Расстояние вводится вручную.</p>
+                </div>
                 <div class="field-group project-field"><label for="project-name">Название объекта <span class="optional-label">необязательно</span></label><input id="project-name" name="project_name" type="text" maxlength="80" autocomplete="off" placeholder="Например, благоустройство территории"><p class="field-hint">Для сохранённого расчёта — чтобы легко найти его позже.</p></div>
-                <div class="tariff-note"><span class="tariff-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5h11v12H3V5Zm11 5h4l3 4v3h-7V10Z" stroke-linejoin="round"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="17.5" cy="18" r="2" fill="currentColor" stroke="none"/><path d="M17 10v4h4"/></svg></span><div><span>Тариф доставки</span><strong id="tariff-value">—</strong></div><p>За перевозку одной тонны<br>на один километр.</p></div>
+                <div class="tariff-note tariff-selector">
+                  <span class="tariff-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5h11v12H3V5Zm11 5h4l3 4v3h-7V10Z" stroke-linejoin="round"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/><circle cx="17.5" cy="18" r="2" fill="currentColor" stroke="none"/><path d="M17 10v4h4"/></svg></span>
+                  <div class="tariff-selector-copy"><span>Тариф перевозки</span><strong id="tariff-value">—</strong><p id="tariff-description">Стандартный тариф · 42 т</p></div>
+                  <button class="button button-secondary button-small" id="choose-tariff" type="button" aria-haspopup="dialog" aria-controls="tariff-dialog" disabled>Выбрать тариф <span aria-hidden="true">↗</span></button>
+                </div>
                 <div class="calculation-feedback" id="calculation-feedback" role="alert" hidden></div>
                 <div class="form-actions"><button class="button button-primary calculate-button" id="calculate-button" type="submit" disabled><span id="calculate-label">Рассчитать стоимость</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="button button-quiet" id="clear-button" type="button">Очистить поля</button></div>
               </section>
@@ -103,8 +115,10 @@
                 <p class="result-project" id="result-project" hidden></p>
                 <div class="result-total"><span>Итого с доставкой</span><strong id="total-cost">—</strong><span class="total-caption">Материал + перевозка до объекта</span></div>
                 <div class="result-selection"><span class="result-label">Материал</span><h3 id="result-material">—</h3><dl class="result-dimensions"><div><dt>Количество</dt><dd id="result-quantity">—</dd></div><div><dt>Расстояние</dt><dd id="result-distance">—</dd></div></dl></div>
+                <dl class="result-route" id="result-routewrap" hidden><div><dt>Откуда</dt><dd id="result-origin">—</dd></div><div><dt>Куда</dt><dd id="result-destination">—</dd></div></dl>
                 <dl class="cost-breakdown"><div><dt>Стоимость материала</dt><dd id="material-cost">—</dd></div><div><dt>Доставка</dt><dd id="delivery-cost">—</dd></div></dl>
                 <div class="rate-breakdown"><span>Тариф перевозки</span><strong id="result-rate">—</strong></div>
+                <p class="result-tariff-name" id="result-tariff-name"></p>
                 <p class="result-formula" id="result-formula"></p>
                 <div class="result-stale" id="result-stale" role="status" hidden>Параметры изменены. Нажмите «Рассчитать стоимость», чтобы обновить результат.</div>
                 <div class="result-actions"><button class="button button-primary button-full" id="save-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 4h12v17l-6-4-6 4V4Z" stroke-linecap="round" stroke-linejoin="round"/></svg>Сохранить расчёт</button><div class="secondary-result-actions"><button class="button button-secondary button-small" id="copy-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/></svg>Скопировать</button><button class="button button-secondary button-small" id="print-button" type="button"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 8V3h12v5M6 17H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6zM17 11h1" stroke-linecap="round"/></svg>Печать / PDF</button></div></div>
@@ -126,7 +140,17 @@
 
         <section id="view-history" data-panel="history" aria-label="Сохранённые расчёты" hidden>
           <div class="history-storage-note"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4" stroke-linecap="round"/></svg><p>До 20 последних расчётов хранятся только в этом браузере. На другом устройстве они не появятся.</p></div>
+          <div class="panel history-toolbar" id="history-toolbar">
+            <div class="history-search-group"><label for="history-search">Поиск по маршруту или объекту</label><div class="search-field"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg><input id="history-search" type="search" placeholder="Название пункта, объекта или материала" autocomplete="off"></div></div>
+            <div class="history-filter-row">
+              <div class="field-group"><label for="history-origin-filter">Откуда</label><select id="history-origin-filter"><option value="">Все пункты</option></select></div>
+              <div class="field-group"><label for="history-destination-filter">Куда</label><select id="history-destination-filter"><option value="">Все пункты</option></select></div>
+              <button class="button button-quiet" id="history-reset" type="button">Сбросить</button>
+            </div>
+            <p class="history-filter-count" id="history-visible-count" role="status" aria-live="polite"></p>
+          </div>
           <div class="history-list" id="history-list"></div>
+          <div class="panel section-empty" id="history-no-matches" hidden><span class="empty-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5" stroke-linecap="round"/></svg></span><h2>Расчёты не найдены</h2><p>Попробуйте другое название или уберите фильтры по пунктам погрузки и разгрузки.</p><button class="button button-secondary" type="button" data-reset-history-filters>Сбросить поиск и фильтры</button></div>
           <div class="panel section-empty history-empty" id="history-empty"><span class="empty-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3h10a2 2 0 0 1 2 2v16l-4-2-3 2-3-2-4 2V5a2 2 0 0 1 2-2Z" stroke-linejoin="round"/><path d="M9 8h6M9 12h4" stroke-linecap="round"/></svg></span><h2>Здесь будут ваши расчёты</h2><p>Рассчитайте поставку и нажмите «Сохранить расчёт». Вы сможете вернуться к результату и распечатать его.</p><button class="button button-primary" type="button" data-view="calculator">Рассчитать поставку <span aria-hidden="true">→</span></button></div>
         </section>
         <footer class="page-footer"><span>RoadMaterials · Материалы и доставка</span><span>Все суммы в российских рублях</span></footer>
@@ -134,7 +158,36 @@
     </div>
   </div>
 
-  <dialog class="app-dialog help-dialog" id="help-dialog" aria-labelledby="help-title"><div class="dialog-heading"><div><span class="eyebrow">БЫСТРОЕ ЗНАКОМСТВО</span><h2 id="help-title">Как рассчитать поставку</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Закрыть справку"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg></button></div><ol class="help-steps"><li><strong>Выберите материал</strong><p>Нажмите на карточку в калькуляторе или найдите нужный материал в каталоге.</p></li><li><strong>Введите количество и расстояние</strong><p>Количество — в тоннах, путь до объекта — в километрах. Дробные значения можно вводить через запятую или точку.</p></li><li><strong>Нажмите «Рассчитать стоимость»</strong><p>Справа появятся стоимость материала, доставки и общий итог. Результат можно сохранить, скопировать или распечатать.</p></li></ol><div class="help-formula"><strong>Как складывается сумма</strong><p>Цена материала × количество<br><span>+</span> Тариф доставки × количество × расстояние</p></div><p class="help-note">Цены в каталоге демонстрационные. Обратный рейс, простой и дополнительные услуги не включены. Сохранённые расчёты доступны только в текущем браузере.</p></dialog>
+  <dialog class="app-dialog tariff-dialog" id="tariff-dialog" aria-labelledby="tariff-title" aria-describedby="tariff-intro">
+    <div class="dialog-heading"><div><span class="eyebrow">СТАВКИ ПЕРЕВОЗКИ</span><h2 id="tariff-title">Тариф перевозки</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Закрыть выбор тарифа"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg></button></div>
+    <p class="tariff-intro" id="tariff-intro">Выберите грузоподъёмность машины и вид тарифа. Все ставки указаны в ₽/(т·км): за перевозку одной тонны на один километр.</p>
+    <div class="fields-grid tariff-controls">
+      <div class="field-group"><label for="tariff-capacity">Грузоподъёмность машины</label><select id="tariff-capacity" autofocus><option value="32">32 т</option><option value="42" selected>42 т</option><option value="53">53 т</option><option value="63">63 т</option></select></div>
+      <div class="field-group"><label for="tariff-mode">Вид тарифа</label><select id="tariff-mode"><option value="standard">Стандартный тариф</option><option value="special_1">Спецтариф 1</option><option value="special_2">Спецтариф 2</option></select></div>
+    </div>
+    <div class="tariff-table-scroll" role="region" aria-label="Таблица тарифов перевозки" tabindex="0">
+      <table class="tariff-table">
+        <caption class="sr-only">Ставки перевозки в рублях за тонно-километр по грузоподъёмности и расстоянию</caption>
+        <thead><tr><th scope="col" rowspan="2">Грузоподъёмность,<br>т</th><th scope="colgroup" colspan="3">Стандартный тариф</th><th scope="col" rowspan="2" class="special-tariff-heading">Спецтариф 1</th><th scope="col" rowspan="2" class="special-tariff-heading">Спецтариф 2</th></tr><tr><th scope="col">Свыше 100 км</th><th scope="col">20–100 км</th><th scope="col">До 20 км</th></tr></thead>
+        <tbody id="tariff-table-body"></tbody>
+      </table>
+    </div>
+    <p class="tariff-table-hint">Можно нажать на подходящую ставку в таблице. На небольшом экране таблица прокручивается вбок.</p>
+    <div class="tariff-preview" aria-live="polite"><div><span>Выбранная ставка</span><strong id="tariff-preview-rate">—</strong></div><p id="tariff-preview-description">Укажите параметры тарифа.</p></div>
+    <p class="tariff-rules">Стандартный тариф зависит от расстояния: меньше 20 км, от 20 до 100 км включительно или свыше 100 км. Ставки «Спецтариф 1» и «Спецтариф 2» зависят только от грузоподъёмности.</p>
+    <div class="dialog-actions tariff-dialog-actions"><button class="button button-secondary" type="button" data-close-dialog>Отмена</button><button class="button button-primary" id="apply-tariff" type="button">Применить тариф</button></div>
+  </dialog>
+
+  <dialog class="app-dialog help-dialog" id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><div><span class="eyebrow">БЫСТРОЕ ЗНАКОМСТВО</span><h2 id="help-title">Как рассчитать поставку</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Закрыть справку"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18" stroke-linecap="round"/></svg></button></div>
+    <ol class="help-steps">
+      <li><strong>Выберите материал</strong><p>Нажмите на карточку в калькуляторе или найдите нужный материал в каталоге.</p></li>
+      <li><strong>Укажите количество и маршрут</strong><p>Введите количество в тоннах и расстояние в километрах. Можно указать, откуда и куда везём материал, и название объекта. Расстояние вводится вручную; дробные значения — через запятую или точку.</p></li>
+      <li><strong>Выберите тариф перевозки</strong><p>Нажмите «Выбрать тариф», укажите грузоподъёмность и выберите стандартный тариф, «Спецтариф 1» или «Спецтариф 2». Стандартная ставка определяется по расстоянию. Проверьте выбор и нажмите «Применить тариф».</p></li>
+      <li><strong>Рассчитайте и сохраните результат</strong><p>Нажмите «Рассчитать стоимость». Результат можно сохранить, скопировать или распечатать. В разделе «Мои расчёты» используйте поиск и фильтры «Откуда» и «Куда».</p></li>
+    </ol>
+    <div class="help-formula"><strong>Как складывается сумма</strong><p>Цена материала × количество<br><span>+</span> Тариф доставки × количество × расстояние</p></div><p class="help-note">Цены в каталоге демонстрационные. Обратный рейс, простой и дополнительные услуги не включены. До 20 сохранённых расчётов доступны только в текущем браузере.</p>
+  </dialog>
   <dialog class="app-dialog delete-dialog" id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-heading"><h2 id="delete-title">Удалить расчёт?</h2></div><p class="dialog-copy">Этот расчёт исчезнет из сохранённых в этом браузере.</p><div class="dialog-actions"><button class="button button-secondary" id="cancel-delete" type="button">Оставить</button><button class="button button-danger" id="confirm-delete" type="button">Удалить расчёт</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <section id="print-sheet" hidden></section>

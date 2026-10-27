@@ -6,14 +6,15 @@
   const STORAGE_KEY = "roadmaterials.estimates.v1";
   const MAX_SAVED = 20;
   const state = {
-    materials: [], pricing: null, selectedId: null, ready: false,
+    materials: [], tariffs: null, selectedId: null, ready: false,
+    tariffMode: "standard", vehicleCapacity: 42,
     pending: false, revision: 0, resultRevision: -1, result: null,
     saved: [], category: "all", deleteId: null, toastTimer: null,
   };
   const viewCopy = {
-    calculator: ["Расчёт поставки", "Выберите материал, укажите количество и расстояние. Остальное посчитаем за вас.", "Калькулятор"],
+    calculator: ["Расчёт поставки", "Выберите материал и тариф, укажите маршрут, количество и расстояние.", "Калькулятор"],
     catalog: ["Каталог материалов", "Сравните материалы и выберите подходящий для вашей задачи.", "Каталог"],
-    history: ["Сохранённые расчёты", "Вернитесь к прошлым расчётам, распечатайте их или пересчитайте по текущим ценам.", "Сохранённые"],
+    history: ["Сохранённые расчёты", "Найдите расчёт по маршруту или объекту, распечатайте его или повторите по текущим ценам.", "Сохранённые"],
   };
   const meta = {
     1: { kind: "asphalt", category: "Асфальт", description: "Для устройства дорожного покрытия" },
@@ -111,8 +112,100 @@
       return `<article class="catalog-card"><div class="material-art art-${info.kind}">${art[info.kind]}</div><div class="catalog-card-body"><span class="material-category">${info.category}</span><h2 class="material-name">${escapeHtml(material.name)}</h2><p class="material-description">${info.description}</p><div class="material-price">${money(material.price_per_ton)} <span>/ т</span></div><button class="button button-primary button-full" type="button" data-choose-material="${material.id}">Рассчитать поставку ${icon("arrow")}</button></div></article>`;
     }).join("");
   }
+  const TARIFF_NAMES = {
+    default: "Базовый тариф", standard: "Стандартный тариф",
+    special_1: "Спецтариф 1", special_2: "Спецтариф 2",
+  };
+  const BAND_NAMES = { over_100: "свыше 100 км", from_20_to_100: "20–100 км", under_20: "до 20 км" };
+  const CAPACITIES = [63, 53, 42, 32];
+  const RATE_COLUMNS = ["over_100", "from_20_to_100", "under_20", "special_1", "special_2"];
+  function normalizedText(value) {
+    return String(value).trim().toLocaleLowerCase("ru").replace(/ё/g, "е").replace(/[–—]/g, "-").replace(/\s+/g, " ");
+  }
+  function routeText(result, key) { return result[key] || ""; }
+  function currentBand() {
+    const raw = $("distance_km").value.trim().replace(/[\s\u00a0\u202f]/g, "").replace(",", ".");
+    if (!/^\d+(?:\.\d{1,3})?$/.test(raw)) return null;
+    const distance = Number(raw);
+    if (distance <= 0 || distance > 9999999.999) return null;
+    return distance < 20 ? "under_20" : distance <= 100 ? "from_20_to_100" : "over_100";
+  }
+  function tariffDescription(mode, capacity, band = null) {
+    return [TARIFF_NAMES[mode] || TARIFF_NAMES.default,
+      mode !== "default" ? `${capacity} т` : "из настроек приложения",
+      mode === "standard" && band ? BAND_NAMES[band] : ""].filter(Boolean).join(" · ");
+  }
+  function resultTariffDescription(result) {
+    return tariffDescription(result.tariff_mode || "default", result.vehicle_capacity_tons, result.distance_band);
+  }
+  function selectedRate(mode, capacity, band) {
+    if (!state.tariffs) return null;
+    if (mode === "default") return state.tariffs.default_rate;
+    const row = state.tariffs.rows.find((item) => item.vehicle_capacity_tons === capacity);
+    return row?.rates[mode === "standard" ? band : mode] || null;
+  }
   function updatePricing() {
-    if (state.pricing) $("tariff-value").textContent = money(state.pricing.delivery_rate, true) + " / т·км";
+    const band = currentBand();
+    const rate = selectedRate(state.tariffMode, state.vehicleCapacity, band);
+    $("tariff-value").textContent = rate ? money(rate, true) + " / т·км" : "Укажите расстояние";
+    $("tariff-description").textContent = tariffDescription(state.tariffMode, state.vehicleCapacity, band);
+  }
+  function validTariffs(data) {
+    return data && data.currency === "RUB" && data.unit === "RUB_PER_TON_KM" &&
+      isAmount(data.default_rate) && Number(data.default_rate) > 0 &&
+      Array.isArray(data.rows) && data.rows.length === CAPACITIES.length &&
+      new Set(data.rows.map((row) => row.vehicle_capacity_tons)).size === CAPACITIES.length &&
+      data.rows.every((row) => CAPACITIES.includes(row.vehicle_capacity_tons) && row.rates &&
+        RATE_COLUMNS.every((column) => isAmount(row.rates[column]) && Number(row.rates[column]) > 0));
+  }
+  function renderTariffDialog() {
+    if (!state.tariffs) return;
+    const mode = $("tariff-mode").value;
+    const capacity = Number($("tariff-capacity").value);
+    const band = currentBand();
+    $("tariff-capacity").disabled = mode === "default";
+    $("tariff-table-body").innerHTML = state.tariffs.rows.map((row) => {
+      const cells = RATE_COLUMNS.map((column) => {
+        const cellMode = column.startsWith("special_") ? column : "standard";
+        const applicable = cellMode !== "standard" || column === band;
+        const selected = row.vehicle_capacity_tons === capacity && mode === cellMode &&
+          (cellMode !== "standard" || column === band);
+        const description = tariffDescription(cellMode, row.vehicle_capacity_tons, cellMode === "standard" ? column : null);
+        return `<td class="${selected ? "is-selected" : applicable ? "is-applicable" : ""}"><button class="tariff-cell-button" type="button" data-tariff-capacity="${row.vehicle_capacity_tons}" data-tariff-mode="${cellMode}" data-tariff-band="${column}" aria-pressed="${selected}" aria-label="${escapeHtml(description)}, ${escapeHtml(money(row.rates[column], true))} за тонно-километр" ${applicable ? "" : 'disabled title="Стандартная ставка выбирается по введённому расстоянию"'}>${decimal(row.rates[column], 2)}</button></td>`;
+      }).join("");
+      return `<tr data-capacity="${row.vehicle_capacity_tons}"><th class="tariff-row-label" scope="row">${row.vehicle_capacity_tons} т</th>${cells}</tr>`;
+    }).join("");
+    const rate = selectedRate(mode, capacity, band);
+    $("tariff-preview-rate").textContent = rate ? money(rate, true) + " / т·км" : "Ставка зависит от расстояния";
+    $("tariff-preview-description").textContent = tariffDescription(mode, capacity, band) +
+      (mode === "standard" && !band ? ". Укажите расстояние в форме — ставка определится автоматически." : "");
+  }
+  function openTariffDialog() {
+    if (!state.ready || state.pending) return;
+    const modeControl = $("tariff-mode");
+    // Old saved calculations retain their original environment-based tariff mode.
+    if (state.tariffMode === "default" && !modeControl.querySelector('option[value="default"]')) {
+      const option = document.createElement("option");
+      option.value = "default";
+      option.textContent = "Базовый тариф из настроек";
+      modeControl.append(option);
+    }
+    modeControl.value = state.tariffMode;
+    $("tariff-capacity").value = String(state.vehicleCapacity);
+    renderTariffDialog();
+    $("tariff-dialog").showModal();
+  }
+  function applyTariff() {
+    const mode = $("tariff-mode").value;
+    const capacity = Number($("tariff-capacity").value);
+    if (!Object.hasOwn(TARIFF_NAMES, mode) || !CAPACITIES.includes(capacity)) return;
+    if (mode !== state.tariffMode || capacity !== state.vehicleCapacity) {
+      state.tariffMode = mode;
+      state.vehicleCapacity = capacity;
+      markChanged();
+    }
+    $("tariff-dialog").close();
+    $("choose-tariff").focus();
   }
   async function requestJSON(url, options = {}) {
     const controller = new AbortController();
@@ -135,7 +228,14 @@
     return typeof value === "string" && /^\d{1,30}(?:\.\d{1,3})?$/.test(value);
   }
   function validResult(result) {
-    return result && Number.isInteger(result.material_id) && result.material_id > 0 &&
+    const validMetadata = result && ["origin", "destination"].every((key) =>
+      result[key] === undefined || (typeof result[key] === "string" && result[key].length <= 160)) &&
+      (result.tariff_mode === undefined || Object.hasOwn(TARIFF_NAMES, result.tariff_mode)) &&
+      (result.tariff_name === undefined || (typeof result.tariff_name === "string" && result.tariff_name.length <= 80)) &&
+      (result.vehicle_capacity_tons == null || CAPACITIES.includes(result.vehicle_capacity_tons)) &&
+      (result.distance_band == null || Object.hasOwn(BAND_NAMES, result.distance_band)) &&
+      (!result.tariff_mode || result.tariff_mode === "default" || CAPACITIES.includes(result.vehicle_capacity_tons));
+    return validMetadata && Number.isInteger(result.material_id) && result.material_id > 0 &&
       typeof result.material_name === "string" && result.material_name.length <= 200 && result.currency === "RUB" &&
       ["quantity_tons", "distance_km", "price_per_ton", "delivery_rate", "material_cost", "delivery_cost", "total_cost"].every((key) => isAmount(result[key]));
   }
@@ -146,10 +246,10 @@
     serviceStatus("loading", "Проверяем сервис");
     updateButtons();
     try {
-      const [materials, pricing] = await Promise.all([requestJSON("/materials"), requestJSON("/pricing")]);
-      if (!Array.isArray(materials) || !materials.length || !materials.every((m) => Number.isInteger(m.id) && m.id > 0 && typeof m.name === "string" && isAmount(m.price_per_ton) && m.currency === "RUB") || !isAmount(pricing.delivery_rate) || pricing.currency !== "RUB") throw new Error("Invalid catalogue");
+      const [materials, tariffs] = await Promise.all([requestJSON("/materials"), requestJSON("/tariffs")]);
+      if (!Array.isArray(materials) || !materials.length || !materials.every((m) => Number.isInteger(m.id) && m.id > 0 && typeof m.name === "string" && isAmount(m.price_per_ton) && m.currency === "RUB") || !validTariffs(tariffs)) throw new Error("Invalid catalogue");
       state.materials = materials;
-      state.pricing = pricing;
+      state.tariffs = tariffs;
       if (!materials.some((m) => m.id === state.selectedId)) state.selectedId = materials[0].id;
       state.ready = true;
       renderPicker();
@@ -169,6 +269,7 @@
   function updateButtons() {
     $("calculate-button").disabled = !state.ready || state.pending;
     $("clear-button").disabled = state.pending;
+    $("choose-tariff").disabled = !state.ready || state.pending;
     $("calculate-label").textContent = state.pending ? "Рассчитываем…" : "Рассчитать стоимость";
     $("calculate-button").setAttribute("aria-busy", String(state.pending));
     $("example-button").disabled = !state.ready || state.pending;
@@ -183,6 +284,7 @@
   }
   function markChanged() {
     state.revision += 1;
+    updatePricing();
     feedback();
     updateButtons();
     document.querySelectorAll("[data-quantity]").forEach((b) => b.classList.toggle("is-active", b.dataset.quantity === $("quantity_tons").value));
@@ -222,6 +324,12 @@
     $("result-quantity").textContent = decimal(result.quantity_tons) + " т";
     $("result-distance").textContent = decimal(result.distance_km) + " км";
     $("result-rate").textContent = money(result.delivery_rate, true) + " / т·км";
+    $("result-tariff-name").textContent = resultTariffDescription(result);
+    const origin = routeText(result, "origin");
+    const destination = routeText(result, "destination");
+    $("result-routewrap").hidden = !origin && !destination;
+    $("result-origin").textContent = origin || "Не указано";
+    $("result-destination").textContent = destination || "Не указано";
     $("material-cost").textContent = money(result.material_cost, true);
     $("delivery-cost").textContent = money(result.delivery_cost, true);
     $("result-project").textContent = projectName;
@@ -244,13 +352,21 @@
     }
     const revision = state.revision;
     const projectName = $("project-name").value.trim().slice(0, 80);
+    const origin = $("origin").value.trim().slice(0, 160);
+    const destination = $("destination").value.trim().slice(0, 160);
+    const tariffMode = state.tariffMode;
+    const capacity = state.vehicleCapacity;
     state.pending = true;
     feedback();
     updateButtons();
     try {
       const result = await requestJSON("/delivery/calculate", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ material_id: state.selectedId, quantity_tons: quantity, distance_km: distance }),
+        body: JSON.stringify({
+          material_id: state.selectedId, quantity_tons: quantity, distance_km: distance,
+          tariff_mode: tariffMode, vehicle_capacity_tons: tariffMode === "default" ? null : capacity,
+          origin, destination,
+        }),
       });
       if (!validResult(result)) throw new Error("Invalid calculation response");
       state.result = {
@@ -258,7 +374,7 @@
         createdAt: new Date().toISOString(), projectName, result,
       };
       state.resultRevision = revision;
-      state.pricing.delivery_rate = result.delivery_rate;
+      if (tariffMode === "default") state.tariffs.default_rate = result.delivery_rate;
       updatePricing();
       renderResult();
       serviceStatus("ready", "Готов к расчёту");
@@ -268,7 +384,7 @@
       }
     } catch (error) {
       if (error.status === 422) {
-        feedback("Проверьте параметры: количество и расстояние должны быть положительными числами с точностью до трёх знаков после запятой.");
+        feedback("Проверьте количество, расстояние и выбранный тариф. Количество и расстояние должны быть больше нуля, пункты маршрута — не длиннее 160 символов.");
       } else if (error.status === 404) {
         feedback("Этот материал больше не найден в каталоге. Обновите страницу и выберите материал снова.");
       } else {
@@ -309,17 +425,71 @@
       return false;
     }
   }
+  function routeFilterValue(value) { return value ? "route:" + normalizedText(value) : "missing"; }
+  function fillRouteOptions(key, selectId, suggestionId) {
+    const control = $(selectId);
+    const previous = control.value;
+    const routes = new Map();
+    let hasMissing = false;
+    for (const snapshot of state.saved) {
+      const value = routeText(snapshot.result, key);
+      if (value) {
+        const normalized = normalizedText(value);
+        if (!routes.has(normalized)) routes.set(normalized, value);
+      } else hasMissing = true;
+    }
+    const values = [...routes.values()].sort((a, b) => a.localeCompare(b, "ru"));
+    control.innerHTML = '<option value="">Все пункты</option>' +
+      values.map((value) => `<option value="${escapeHtml(routeFilterValue(value))}">${escapeHtml(value)}</option>`).join("") +
+      (hasMissing ? '<option value="missing">Не указано</option>' : "");
+    control.value = [...control.options].some((option) => option.value === previous) ? previous : "";
+    $(suggestionId).innerHTML = values.map((value) => `<option value="${escapeHtml(value)}"></option>`).join("");
+  }
+  function resetHistoryFilters() {
+    $("history-search").value = "";
+    $("history-origin-filter").value = "";
+    $("history-destination-filter").value = "";
+    renderHistory();
+  }
   function renderHistory() {
+    fillRouteOptions("origin", "history-origin-filter", "origin-suggestions");
+    fillRouteOptions("destination", "history-destination-filter", "destination-suggestions");
+    const terms = normalizedText($("history-search").value).split(" ").filter(Boolean);
+    const originFilter = $("history-origin-filter").value;
+    const destinationFilter = $("history-destination-filter").value;
+    const items = state.saved.filter((item) => {
+      const result = item.result;
+      const origin = routeText(result, "origin");
+      const destination = routeText(result, "destination");
+      const text = normalizedText(`${origin} ${destination} ${item.projectName} ${result.material_name} ${resultTariffDescription(result)}`);
+      return terms.every((term) => text.includes(term)) &&
+        (!originFilter || routeFilterValue(origin) === originFilter) &&
+        (!destinationFilter || routeFilterValue(destination) === destinationFilter);
+    });
     $("history-count").textContent = String(state.saved.length);
     $("history-empty").hidden = state.saved.length !== 0;
-    $("history-list").innerHTML = state.saved.map((item) => {
+    $("history-toolbar").hidden = state.saved.length === 0;
+    $("history-no-matches").hidden = state.saved.length === 0 || items.length > 0;
+    $("history-visible-count").textContent = `Найдено ${items.length} из ${state.saved.length}`;
+    $("history-reset").disabled = terms.length === 0 && !originFilter && !destinationFilter;
+    $("history-list").innerHTML = items.map((item) => {
       const result = item.result;
-      return `<article class="history-card"><div class="history-main"><div class="history-topline"><h2>${escapeHtml(item.projectName || "Расчёт поставки")}</h2><time datetime="${escapeHtml(item.createdAt)}">${dateLabel(item.createdAt)}</time></div><p class="history-material">${escapeHtml(result.material_name)}</p><div class="history-meta"><span>${decimal(result.quantity_tons)} т</span><span>${decimal(result.distance_km)} км</span><span>Тариф ${money(result.delivery_rate, true)} / т·км</span></div><div class="history-total">${money(result.total_cost)}</div></div><div class="history-actions"><button class="button button-secondary button-small" data-repeat="${escapeHtml(item.id)}" type="button">${icon("repeat")} Повторить</button><button class="button button-secondary button-small" data-print-saved="${escapeHtml(item.id)}" type="button">${icon("print")} Печать</button><button class="button button-quiet button-small" data-delete="${escapeHtml(item.id)}" type="button">${icon("trash")} Удалить</button></div></article>`;
+      const origin = routeText(result, "origin");
+      const destination = routeText(result, "destination");
+      const route = origin || destination ? `<dl class="history-route"><div><dt>Откуда</dt><dd>${escapeHtml(origin || "Не указано")}</dd></div><div><dt>Куда</dt><dd>${escapeHtml(destination || "Не указано")}</dd></div></dl>` : '<p class="history-material">Маршрут не указан</p>';
+      return `<article class="history-card"><div class="history-main"><div class="history-topline"><h2>${escapeHtml(item.projectName || "Расчёт поставки")}</h2><time datetime="${escapeHtml(item.createdAt)}">${dateLabel(item.createdAt)}</time></div><p class="history-material">${escapeHtml(result.material_name)}</p>${route}<div class="history-meta"><span>${decimal(result.quantity_tons)} т</span><span>${decimal(result.distance_km)} км</span><span>${escapeHtml(resultTariffDescription(result))}</span><span>${money(result.delivery_rate, true)} / т·км</span></div><div class="history-total">${money(result.total_cost)}</div></div><div class="history-actions"><button class="button button-secondary button-small" data-repeat="${escapeHtml(item.id)}" type="button">${icon("repeat")} Повторить</button><button class="button button-secondary button-small" data-print-saved="${escapeHtml(item.id)}" type="button">${icon("print")} Печать</button><button class="button button-quiet button-small" data-delete="${escapeHtml(item.id)}" type="button">${icon("trash")} Удалить</button></div></article>`;
     }).join("");
   }
   function summaryText(snapshot) {
     const { result: r, projectName, createdAt } = snapshot;
-    return ["RoadMaterials · Расчёт стоимости поставки", projectName ? `Объект: ${projectName}` : "", `Дата: ${dateLabel(createdAt)}`, `Материал: ${r.material_name}`, `Количество: ${decimal(r.quantity_tons)} т`, `Расстояние: ${decimal(r.distance_km)} км`, `Цена материала: ${money(r.price_per_ton, true)} / т`, `Тариф доставки: ${money(r.delivery_rate, true)} / т·км`, `Материал: ${money(r.material_cost, true)}`, `Доставка: ${money(r.delivery_cost, true)}`, `ИТОГО: ${money(r.total_cost, true)}`, "Демонстрационные цены. Расчёт не является коммерческим предложением."].filter(Boolean).join("\n");
+    return ["RoadMaterials · Расчёт стоимости поставки", projectName ? `Объект: ${projectName}` : "", `Дата: ${dateLabel(createdAt)}`,
+      routeText(r, "origin") ? `Откуда: ${r.origin}` : "",
+      routeText(r, "destination") ? `Куда: ${r.destination}` : "",
+      `Материал: ${r.material_name}`, `Количество: ${decimal(r.quantity_tons)} т`, `Расстояние: ${decimal(r.distance_km)} км`,
+      `Цена материала: ${money(r.price_per_ton, true)} / т`, `Выбранный тариф: ${resultTariffDescription(r)}`,
+      `Ставка доставки: ${money(r.delivery_rate, true)} / т·км`, `Материал: ${money(r.material_cost, true)}`,
+      `Доставка: ${money(r.delivery_cost, true)}`, `ИТОГО: ${money(r.total_cost, true)}`,
+      "Демонстрационные цены материалов. Расчёт не является коммерческим предложением."].filter(Boolean).join("\n");
   }
   async function copyResult() {
     if (!state.result || isStale() || state.pending) return;
@@ -343,13 +513,15 @@
   }
   function printSnapshot(snapshot) {
     const { result: r, projectName, createdAt } = snapshot;
-    $("print-sheet").innerHTML = `<header class="print-header"><strong>RoadMaterials</strong><span>Материалы и доставка</span></header><h1>Расчёт стоимости поставки</h1><p>${dateLabel(createdAt)}</p>${projectName ? `<p><strong>Объект:</strong> ${escapeHtml(projectName)}</p>` : ""}<table class="print-table"><tbody><tr><th>Материал</th><td>${escapeHtml(r.material_name)}</td></tr><tr><th>Количество</th><td>${decimal(r.quantity_tons)} т</td></tr><tr><th>Расстояние доставки</th><td>${decimal(r.distance_km)} км</td></tr><tr><th>Цена за тонну</th><td>${money(r.price_per_ton, true)}</td></tr><tr><th>Тариф доставки</th><td>${money(r.delivery_rate, true)} / т·км</td></tr><tr><th>Стоимость материала</th><td>${money(r.material_cost, true)}</td></tr><tr><th>Стоимость доставки</th><td>${money(r.delivery_cost, true)}</td></tr></tbody></table><div class="print-total"><span>Итого</span><strong>${money(r.total_cost, true)}</strong></div><p class="print-note">Материал: ${decimal(r.quantity_tons)} т × ${money(r.price_per_ton, true)} / т.<br>Доставка: ${decimal(r.quantity_tons)} т × ${decimal(r.distance_km)} км × ${money(r.delivery_rate, true)} / т·км.</p><p class="print-note">Демонстрационные цены. Расчёт не является коммерческим предложением. Обратный пробег, простои и дополнительные услуги не учитываются.</p>`;
+    $("print-sheet").innerHTML = `<header class="print-header"><strong>RoadMaterials</strong><span>Материалы и доставка</span></header><h1>Расчёт стоимости поставки</h1><p>${dateLabel(createdAt)}</p>${projectName ? `<p><strong>Объект:</strong> ${escapeHtml(projectName)}</p>` : ""}<table class="print-table"><tbody>${routeText(r, "origin") ? `<tr><th>Откуда</th><td>${escapeHtml(r.origin)}</td></tr>` : ""}${routeText(r, "destination") ? `<tr><th>Куда</th><td>${escapeHtml(r.destination)}</td></tr>` : ""}<tr><th>Материал</th><td>${escapeHtml(r.material_name)}</td></tr><tr><th>Количество</th><td>${decimal(r.quantity_tons)} т</td></tr><tr><th>Расстояние доставки</th><td>${decimal(r.distance_km)} км</td></tr><tr><th>Цена за тонну</th><td>${money(r.price_per_ton, true)}</td></tr><tr><th>Выбранный тариф</th><td>${escapeHtml(resultTariffDescription(r))}</td></tr><tr><th>Ставка доставки</th><td>${money(r.delivery_rate, true)} / т·км</td></tr><tr><th>Стоимость материала</th><td>${money(r.material_cost, true)}</td></tr><tr><th>Стоимость доставки</th><td>${money(r.delivery_cost, true)}</td></tr></tbody></table><div class="print-total"><span>Итого</span><strong>${money(r.total_cost, true)}</strong></div><p class="print-note">Материал: ${decimal(r.quantity_tons)} т × ${money(r.price_per_ton, true)} / т.<br>Доставка: ${decimal(r.quantity_tons)} т × ${decimal(r.distance_km)} км × ${money(r.delivery_rate, true)} / т·км.</p><p class="print-note">Демонстрационные цены. Расчёт не является коммерческим предложением. Обратный пробег, простои и дополнительные услуги не учитываются.</p>`;
     window.print();
   }
   function resetForm() {
     $("estimate-form").reset();
     state.selectedId = state.materials[0]?.id || null;
     state.result = null;
+    state.tariffMode = "standard";
+    state.vehicleCapacity = 42;
     state.revision += 1;
     renderPicker();
     fieldError("quantity_tons", "");
@@ -362,6 +534,14 @@
   document.addEventListener("click", (event) => {
     const nav = event.target.closest("[data-view]");
     if (nav) { event.preventDefault(); setView(nav.dataset.view, true, true); }
+    const tariffCell = event.target.closest("[data-tariff-capacity]");
+    if (tariffCell && !tariffCell.disabled) {
+      $("tariff-capacity").value = tariffCell.dataset.tariffCapacity;
+      $("tariff-mode").value = tariffCell.dataset.tariffMode;
+      renderTariffDialog();
+      $("apply-tariff").focus();
+    }
+    if (event.target.closest("[data-reset-history-filters]")) resetHistoryFilters();
     const quick = event.target.closest("[data-quantity], [data-distance]");
     if (quick) {
       const field = quick.hasAttribute("data-quantity") ? "quantity_tons" : "distance_km";
@@ -388,6 +568,10 @@
         $("quantity_tons").value = decimal(item.result.quantity_tons);
         $("distance_km").value = decimal(item.result.distance_km);
         $("project-name").value = item.projectName;
+        $("origin").value = routeText(item.result, "origin");
+        $("destination").value = routeText(item.result, "destination");
+        state.tariffMode = item.result.tariff_mode || "default";
+        state.vehicleCapacity = item.result.vehicle_capacity_tons || 42;
         renderPicker(); markChanged(); setView("calculator", true, true); calculate();
       } else toast("Материал недоступен. Обновите страницу, чтобы загрузить каталог.");
     }
@@ -406,7 +590,14 @@
     $(field).addEventListener("input", () => { fieldError(field, ""); markChanged(); });
     $(field).addEventListener("blur", () => { if ($(field).value.trim()) validateField(field); });
   });
-  $("project-name").addEventListener("input", markChanged);
+  ["project-name", "origin", "destination"].forEach((field) => $(field).addEventListener("input", markChanged));
+  $("choose-tariff").addEventListener("click", openTariffDialog);
+  $("tariff-capacity").addEventListener("change", renderTariffDialog);
+  $("tariff-mode").addEventListener("change", renderTariffDialog);
+  $("apply-tariff").addEventListener("click", applyTariff);
+  $("history-search").addEventListener("input", renderHistory);
+  ["history-origin-filter", "history-destination-filter"].forEach((field) => $(field).addEventListener("change", renderHistory));
+  $("history-reset").addEventListener("click", resetHistoryFilters);
   $("catalog-search").addEventListener("input", renderCatalog);
   $("clear-button").addEventListener("click", resetForm);
   $("example-button").addEventListener("click", () => {
@@ -414,6 +605,10 @@
     $("quantity_tons").value = "30";
     $("distance_km").value = "50";
     $("project-name").value = "";
+    $("origin").value = "База в Уфе";
+    $("destination").value = "Объект строительства";
+    state.tariffMode = "standard";
+    state.vehicleCapacity = 42;
     renderPicker(); markChanged(); calculate();
   });
   $("save-button").addEventListener("click", () => {

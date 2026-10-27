@@ -54,5 +54,7 @@ jobs:
             static/styles.css
             static/app.js
             docs/interface.jpg
+            docs/tariffs.jpg
+            docs/routes-history.jpg
           include-hidden-files: true
           if-no-files-found: error
